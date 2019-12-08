@@ -37,6 +37,17 @@ class DeepTranslit():
     rank = 'auto'
 
     def __init__(self, lang_code, rank='auto'):
+        """
+        Initialize deeptranslit
+
+        Parameters:
+
+        lang_code (str): Name or code of the language. (Currently supported: hindi/hi)
+
+        rank (str): Mode of ranking. In default mode ('auto') kenlm will be used if available. (simple|kenlm|auto are the supported options)
+
+        """
+
         if lang_code in lang_code_mapping:
             lang_code = lang_code_mapping[lang_code]
         
@@ -83,6 +94,20 @@ class DeepTranslit():
             DeepTranslit.rank = rank
 
     def transliterate(self, sent, top=3):
+                """
+        Transliterate an input sentence while preserving punctuation at word or sentence endings.
+
+        Parameters:
+
+        sent (str): Sentence to be transliterated.
+
+        top (int): top-n results to be returned. if 0 or None, all results will be returned.
+
+        Returns:
+
+        list: returns list of tuples of size 2 with first element of each tuple being the transliterated sentence and second element being the "score"
+
+        """
         rank = DeepTranslit.rank
         words = sent.strip().split()
         puncs = []
