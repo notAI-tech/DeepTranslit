@@ -94,7 +94,7 @@ class DeepTranslit():
             DeepTranslit.rank = rank
 
     def transliterate(self, sent, top=3):
-                """
+        """
         Transliterate an input sentence while preserving punctuation at word or sentence endings.
 
         Parameters:
