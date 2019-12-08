@@ -88,7 +88,7 @@ class DeepTranslit():
             logging.warn('Loading KenLM.')
             DeepTranslit.lm = kenlm.Model(lm_path)
 
-    def transliterate(self, sent, rank='auto'):
+    def transliterate(self, sent, rank='auto', top=3):
         words = sent.strip().split()
         puncs = []
         for i, word in enumerate(words):
@@ -159,4 +159,8 @@ class DeepTranslit():
 
             resp = sorted(resp, key=lambda x: x[1], reverse=True) 
         
+
+        if top:
+            resp = resp[:top]
+
         return resp
