@@ -34,8 +34,7 @@ class DeepTranslit():
     model = None
     words = None
     lm = None
-    cache = None
-    def __init__(self, lang_code, caching=True):
+    def __init__(self, lang_code):
         if lang_code in lang_code_mapping:
             lang_code = lang_code_mapping[lang_code]
         
@@ -51,7 +50,6 @@ class DeepTranslit():
         params_path = os.path.join(lang_path, 'params')
         words_path = os.path.join(lang_path, 'words')
         lm_path = os.path.join(lang_path, 'lm')
-        cache_path = os.path.join(lang_path, 'cache')
         
         if not os.path.exists(lang_path):
             os.mkdir(lang_path)
@@ -72,17 +70,10 @@ class DeepTranslit():
             print('Downloading lm', model_links[lang_code]['lm'], 'to', lm_path)
             pydload.dload(url=model_links[lang_code]['lm'], save_to_path=lm_path, max_time=None)
         
-        if not os.path.exists(cache_path):
-            print('Downloading cache', model_links[lang_code]['cache'], 'to', cache_path)
-            pydload.dload(url=model_links[lang_code]['cache'], save_to_path=cache_path, max_time=None)
-        
         DeepTranslit.model, DeepTranslit.params = build_model(params_path=params_path, enc_lstm_units=64, use_gru=True, display_summary=False)
         DeepTranslit.model.load_weights(checkpoint_path)
 
         DeepTranslit.words = pickle.load(open(words_path, 'rb'))
-
-        if caching:
-            DeepTranslit.cache = pickle.load(open(cache_path, 'rb'))
 
         if kenlm_available:
             logging.warn('Loading KenLM.')
