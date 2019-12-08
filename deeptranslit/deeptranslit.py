@@ -34,7 +34,9 @@ class DeepTranslit():
     model = None
     words = None
     lm = None
-    def __init__(self, lang_code):
+    rank = 'auto'
+
+    def __init__(self, lang_code, rank='auto'):
         if lang_code in lang_code_mapping:
             lang_code = lang_code_mapping[lang_code]
         
@@ -75,11 +77,13 @@ class DeepTranslit():
 
         DeepTranslit.words = pickle.load(open(words_path, 'rb'))
 
-        if kenlm_available:
+        if kenlm_available and rank in {'auto', 'kenlm'}:
             logging.warn('Loading KenLM.')
             DeepTranslit.lm = kenlm.Model(lm_path)
+            DeepTranslit.rank = rank
 
-    def transliterate(self, sent, rank='auto', top=3):
+    def transliterate(self, sent, top=3):
+        rank = DeepTranslit.rank
         words = sent.strip().split()
         puncs = []
         for i, word in enumerate(words):
