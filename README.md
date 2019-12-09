@@ -16,7 +16,7 @@ transliterator.transliterate('mai mbbs complete karliya')
 
 # Notes:
 
-1. The dataset is created from various sources (translation corpora, wikipedia parallel titles etc..).
+1. The dataset is created from various sources (translation corpora (http://www.cfilt.iitb.ac.in/iitb_parallel/), wikipedia parallel titles (extracted locally using some heuristics) etc..).
 2. Transliteration for low resource languages is not an easy task and will never be perfect. This module is still in beta and not perfect.
 
 # TODO:
