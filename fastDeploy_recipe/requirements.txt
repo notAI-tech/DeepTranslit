@@ -1,0 +1,2 @@
+keras==2.2.4
+https://github.com/notAI-tech/DeepTranslit/archive/master.zip
