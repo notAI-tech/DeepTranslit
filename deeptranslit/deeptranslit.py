@@ -1,50 +1,66 @@
 import os
 import re
+import numpy
 import pickle
 import string
 import pydload
 import logging
 import itertools
-
 from txt2txt import infer, build_model
 
-kenlm_available = True
-
-try:
-    import kenlm
-except:
-    logging.warn('KenLm not installed. Simple scoring will be used.')
-    kenlm_available = False
-
 model_links = {
-            'hi': {
-                    'checkpoint': 'https://github.com/bedapudi6788/DeepTranslit/releases/download/v0.5/en_hi_checkpoint',
-                    'params': 'https://github.com/bedapudi6788/DeepTranslit/releases/download/v0.5/en_hi_params',
-                    'words': 'https://github.com/bedapudi6788/DeepTranslit/releases/download/v0.5/hi_words',
-                    'lm': 'https://github.com/bedapudi6788/DeepTranslit/releases/download/v0.5/hi_lm.bin'
+            'hin': {
+                    'checkpoint': 'https://github.com/bedapudi6788/DeepTranslit/releases/download/v0.5/en_hi_checkpoint_v2',
+                    'params': 'https://github.com/bedapudi6788/DeepTranslit/releases/download/v0.5/en_hi_params_v2',
+                },
+            'tel': {
+                    'checkpoint': 'https://github.com/bedapudi6788/DeepTranslit/releases/download/v0.5/en_te_checkpoint',
+                    'params': 'https://github.com/bedapudi6788/DeepTranslit/releases/download/v0.5/en_te_params',
+                },
+            'kan': {
+                    'checkpoint': 'https://github.com/bedapudi6788/DeepTranslit/releases/download/v0.5/en_ka_checkpoint',
+                    'params': 'https://github.com/bedapudi6788/DeepTranslit/releases/download/v0.5/en_ka_params',
+                },
+            'mal': {
+                    'checkpoint': 'https://github.com/bedapudi6788/DeepTranslit/releases/download/v0.5/en_mal_checkpoint',
+                    'params': 'https://github.com/bedapudi6788/DeepTranslit/releases/download/v0.5/en_mal_params',
+                },
+            'mar': {
+                    'checkpoint': 'https://github.com/bedapudi6788/DeepTranslit/releases/download/v0.5/en_mar_checkpoint',
+                    'params': 'https://github.com/bedapudi6788/DeepTranslit/releases/download/v0.5/en_mar_params',
+                },
+            'tam': {
+                    'checkpoint': 'https://github.com/bedapudi6788/DeepTranslit/releases/download/v0.5/en_ta_checkpoint',
+                    'params': 'https://github.com/bedapudi6788/DeepTranslit/releases/download/v0.5/en_ta_params',
                 },
             }
 
 lang_code_mapping = {
-            'hindi': 'hi',
+            'hindi': 'hin',
+            'telugu': 'tel',
+            'kannada': 'kan',
+            'malayalam': 'mal',
+            'marathi': 'mar',
+            'tamil': 'tam'
         }
+
+
+def tokenize(word, alphabet=set('qwertyuiopasdfghjklzxcvbnm'), preprocess=True):
+    if preprocess:
+        word = word.strip().lower() 
+    return ''.join([c if c in alphabet else ' ' + c + ' ' for c in word]).strip().split()
 
 class DeepTranslit():
     params = None
     model = None
-    words = None
-    lm = None
-    rank = 'auto'
 
-    def __init__(self, lang_code, rank='auto'):
+    def __init__(self, lang_code):
         """
         Initialize deeptranslit
 
         Parameters:
 
         lang_code (str): Name or code of the language. (Currently supported: hindi/hi)
-
-        rank (str): Mode of ranking. In default mode ('auto') kenlm will be used if available. (simple|kenlm|auto are the supported options)
 
         """
 
@@ -61,8 +77,6 @@ class DeepTranslit():
         lang_path = os.path.join(home, '.DeepTranslit_' + lang_code)
         checkpoint_path = os.path.join(lang_path, 'checkpoint')
         params_path = os.path.join(lang_path, 'params')
-        words_path = os.path.join(lang_path, 'words')
-        lm_path = os.path.join(lang_path, 'lm')
         
         if not os.path.exists(lang_path):
             os.mkdir(lang_path)
@@ -75,112 +89,101 @@ class DeepTranslit():
             print('Downloading model params', model_links[lang_code]['params'], 'to', params_path)
             pydload.dload(url=model_links[lang_code]['params'], save_to_path=params_path, max_time=None)
         
-        if not os.path.exists(words_path):
-            print('Downloading words', model_links[lang_code]['words'], 'to', words_path)
-            pydload.dload(url=model_links[lang_code]['words'], save_to_path=words_path, max_time=None)
-
-        if not os.path.exists(lm_path):
-            print('Downloading lm', model_links[lang_code]['lm'], 'to', lm_path)
-            pydload.dload(url=model_links[lang_code]['lm'], save_to_path=lm_path, max_time=None)
-        
         DeepTranslit.model, DeepTranslit.params = build_model(params_path=params_path, enc_lstm_units=64, use_gru=True, display_summary=False)
         DeepTranslit.model.load_weights(checkpoint_path)
 
-        DeepTranslit.words = pickle.load(open(words_path, 'rb'))
 
-        if kenlm_available and rank in {'auto', 'kenlm'}:
-            logging.warn('Loading KenLM.')
-            DeepTranslit.lm = kenlm.Model(lm_path)
-            DeepTranslit.rank = rank
-
-    def transliterate(self, sent, top=3):
+    def transliterate_words(self, in_words, top_n=1):
         """
-        Transliterate an input sentence while preserving punctuation at word or sentence endings.
+        Transliterate an input word while preserving unknown tokens.
 
         Parameters:
 
-        sent (str): Sentence to be transliterated.
+        sent (str): word(s) to be transliterated.
 
-        top (int): top-n results to be returned. if 0 or None, all results will be returned.
+        top (int): top-n results to be returned. | also the beam size
 
         Returns:
 
-        list: returns list of tuples of size 2 with first element of each tuple being the transliterated sentence and second element being the "score"
+        list: returns list of dicts eg: [{'pred': string, 'prob': float}, {'pred': string, 'prob': float}, ..] per each input.
 
         """
-        rank = DeepTranslit.rank
-        words = sent.strip().split()
-        puncs = []
-        for i, word in enumerate(words):
-            words[i] = re.sub('[' + string.punctuation + ']', '', word.lower())
-            if not words[i]:
-                continue
+        return_single = False
+        if not isinstance(in_words, list):
+            return_single = True
+            in_words = [in_words]
 
-            punc = None
-            if word[-1] in string.punctuation:
-                punc = word[-1]
-            
-            puncs.append(punc)
-
-        words = [w for w in words if w]
+        orig_to_tokenized_map = {}
+        for in_word in in_words:
+            orig_to_tokenized_map[in_word] = tokenize(in_word, alphabet=self.params['input_encoding'], preprocess=True)
         
-        np_words = []
+        unique_tokens = set()
+        for in_word, tokens in orig_to_tokenized_map.items():
+            for token in tokens:
+                if [c for c in token if c not in self.params['input_encoding']]:
+                    continue
 
-        for i, word in enumerate(words):
-            if [c for c in word if c not in DeepTranslit.params['input_encoding']]:
-                np_words.append((i - len(np_words), word))
-                words[i] = None
-            
-        words = [w for w in words if w]        
-
-        preds = infer(words, DeepTranslit.model, DeepTranslit.params)
-
-        for posi, np_word in np_words:
-            preds = preds[:posi] + [[{'sequence': np_word, 'prob': 1}]] + preds[posi:]
-
-        resp = []
-
-        preds = list(itertools.product(*preds))
-
-        for pred in preds:
-            words = [w['sequence'] for w in pred]
-            for i, word in enumerate(words):
-                if puncs[i]:
-                    word = word + puncs[i]
-                words[i] = word
-
-            probs = [w['prob'] for w in pred]
-
-            sent = ' '.join(words)
-            resp.append((sent, probs))
+                unique_tokens.add(token)
         
-        if rank == 'auto':
-            if kenlm_available:
-                rank = 'kenlm'
+        unique_tokens = list(unique_tokens)
+
+        unique_token_preds = infer(unique_tokens, DeepTranslit.model, DeepTranslit.params, max_beams=top_n, cut_off_ratio=2)
+        unique_token_preds = {token: token_pred for token, token_pred in zip(unique_tokens, unique_token_preds)}
+
+        all_preds = []
+
+        for in_word in in_words:
+            if in_word not in orig_to_tokenized_map:
+                all_preds.append([{'pred': in_word, 'prob': 1}])
             else:
-                rank = 'simple'
-
-        if rank == 'simple':
-            for i, (sent, probs) in enumerate(resp):
-                words = sent.split()
-                score = sum([1 for word in words if word in DeepTranslit.words])
-                resp[i] = (sent, score)
-            
-            resp = sorted(resp, key=lambda x: x[1], reverse=True)
+                preds = itertools.product(*[unique_token_preds.get(token, [{'sequence': token, 'prob': 1}]) for token in orig_to_tokenized_map[in_word]])
+                preds = [{'pred': ''.join([p['sequence'] for p in pred]), 'prob': numpy.prod([p['prob'] for p in pred])} for pred in preds]
+                preds = sorted(preds, key=lambda x: x['prob'], reverse=True)[:top_n]
+                all_preds.append(preds)
         
-        elif rank == 'kenlm':
-            if not kenlm_available:
-                logging.error("KenLm not available")
-                return resp
+        if return_single:
+            all_preds = all_preds[0]
 
-            for i, (sent, probs) in enumerate(resp):
-                score = DeepTranslit.lm.score(sent)
-                resp[i] = (sent, score)
+        return all_preds
+                    
 
-            resp = sorted(resp, key=lambda x: x[1], reverse=True) 
-        
+    def transliterate(self, sents, top_n=1):
+        """
+        Transliterate an input sentence while preserving unknown tokens.
 
-        if top:
-            resp = resp[:top]
+        Parameters:
 
-        return resp
+        sent (str): Sentence(s) to be transliterated.
+
+        top (int): top-n results to be returned. | also the beam size
+
+        Returns:
+
+        list: returns list of dicts eg: [{'pred': string, 'prob': float}, {'pred': string, 'prob': float}, ..] per each input.
+
+        """
+        return_single = False
+        if not isinstance(sents, list):
+            return_single = True
+            sents = [sents]
+
+        sents = [' '.join(sent.strip().split()) for sent in sents]
+
+        all_unique_words = list(set(' '.join(sents).split()))
+        word_preds = self.transliterate_words(all_unique_words, top_n=top_n)
+        word_preds = {w: p for w, p in zip(all_unique_words, word_preds)}
+        print(word_preds)
+
+        sent_preds = []
+
+        for sent in sents:
+            preds = itertools.product(*[word_preds.get(w, [{'pred': w, 'prob': 1}]) for w in sent.split()])
+            preds = [{'pred': ' '.join([p['pred'] for p in pred]), 'prob': numpy.prod([p['prob'] for p in pred])} for pred in preds]
+            preds = sorted(preds, key=lambda x: x['prob'], reverse=True)[:top_n]
+            sent_preds.append(preds)
+
+        if return_single:
+            sent_preds = sent_preds[0]
+
+        return sent_preds
+
