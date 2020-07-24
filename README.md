@@ -1,25 +1,27 @@
 # DeepTranslit: Towards better transliteration for Indic languages.
 
-Documentation is available at http://bpraneeth.com/docs/deeptranslit
+**`telugu`, `kannada`, `tamil`, `malayalam`, `marathi`, `hindi` are the current supported languages.**
+
 
 # Usage
 ```
 from deeptranslit import DeepTranslit
 
+# hindi
 transliterator = DeepTranslit('hindi')
-# Currently hindi (hi) is the only supported language.
+# Single sentence prediction
+transliterator.transliterate('mera naam amitab.')
+# [{'pred': 'मेरा नाम अमिताब.', 'prob': 0.25336900797483103}]
 
-transliterator.transliterate('mai mbbs complete karliya')
-[('मैं एमबीबीएस कम्प्लीट करलिया', 4), ('मैं एमबीबीएस कंप्लीट करलिया', 4), ('मैं एमबीबी कम्प्लीट करलिया', 4)]
+# Multiple sentence prediction
+transliterator.transliterate(['mera naam amitab.', 'amitab-aur-abhishek'])
+#[[{'pred': 'मेरा नाम अमिताब.', 'prob': 0.25336900797483103}],
+# [{'pred': 'अमिताब-और-अभिषेक', 'prob': 0.1027598988040056}]]
 
 ```
 
+
 # Notes:
-
-1. The dataset is created from various sources (translation corpora (http://www.cfilt.iitb.ac.in/iitb_parallel/), wikipedia parallel titles (extracted locally using some heuristics) etc..).
-2. Transliteration for low resource languages is not an easy task and will never be perfect. This module is still in beta and not perfect.
-
-# TODO:
-
-1. Add local caching for faster transliteration.
-2. Support for more languages.
+- Tokens (characters) not present in input space (english alphabet) are copied over to output.
+  - eg: (`amitab.` -> `अमिताब.`, `amitab-aur-abhishek` -> `अमिताब-और-अभिषेक`)
+- Predictions are cached at word level. i.e: computationally, `transliterate('amitab amitab')` is equivalent to `transliterate('amitab')` or `transliterate('amitab amitab amitab')`
