@@ -1,4 +1,4 @@
-# DeepTranslit: For better transliteration of Indic languages.
+# DeepTranslit: Towards better transliteration for Indic languages.
 
 Documentation is available at http://bpraneeth.com/docs/deeptranslit
 
