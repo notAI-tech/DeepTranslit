@@ -128,8 +128,9 @@ class DeepTranslit():
         
         unique_tokens = list(unique_tokens)
 
-        unique_token_preds = infer(unique_tokens, self.model, self.params, max_beams=top_n, cut_off_ratio=2)
-        self.cache.update({token: token_pred for token, token_pred in zip(unique_tokens, unique_token_preds)})
+        if unique_tokens:
+            unique_token_preds = infer(unique_tokens, self.model, self.params, max_beams=top_n, cut_off_ratio=2)
+            self.cache.update({token: token_pred for token, token_pred in zip(unique_tokens, unique_token_preds)})
 
         all_preds = []
 
