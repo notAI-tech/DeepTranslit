@@ -4,7 +4,23 @@
 
 
 # Usage
+**Via docker**
+```bash
+# Start the container in background
+docker run -d -p 8080:8080 notaitech/deeptranslit:hindi
 ```
+
+```python
+# Query from python
+import requests
+requests.post('http://localhost:8080/sync', json={"data": ['mera naam amitab.', 'amitab-aur-abhishek']}).json()
+```
+
+**As python module**
+```bash
+pip install --upgrade deeptranslit
+```
+```python
 from deeptranslit import DeepTranslit
 
 # hindi
