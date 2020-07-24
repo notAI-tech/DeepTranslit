@@ -53,6 +53,7 @@ def tokenize(word, alphabet=set('qwertyuiopasdfghjklzxcvbnm'), preprocess=True):
 class DeepTranslit():
     params = None
     model = None
+    cache = {}
 
     def __init__(self, lang_code):
         """
@@ -120,7 +121,7 @@ class DeepTranslit():
         unique_tokens = set()
         for in_word, tokens in orig_to_tokenized_map.items():
             for token in tokens:
-                if [c for c in token if c not in self.params['input_encoding']]:
+                if [c for c in token if c not in self.params['input_encoding']] or token in self.cache:
                     continue
 
                 unique_tokens.add(token)
@@ -128,7 +129,7 @@ class DeepTranslit():
         unique_tokens = list(unique_tokens)
 
         unique_token_preds = infer(unique_tokens, self.model, self.params, max_beams=top_n, cut_off_ratio=2)
-        unique_token_preds = {token: token_pred for token, token_pred in zip(unique_tokens, unique_token_preds)}
+        self.cache.update({token: token_pred for token, token_pred in zip(unique_tokens, unique_token_preds)})
 
         all_preds = []
 
@@ -136,7 +137,7 @@ class DeepTranslit():
             if in_word not in orig_to_tokenized_map:
                 all_preds.append([{'pred': in_word, 'prob': 1}])
             else:
-                preds = itertools.product(*[unique_token_preds.get(token, [{'sequence': token, 'prob': 1}]) for token in orig_to_tokenized_map[in_word]])
+                preds = itertools.product(*[self.cache.get(token, [{'sequence': token, 'prob': 1}]) for token in orig_to_tokenized_map[in_word]])
                 preds = [{'pred': ''.join([p['sequence'] for p in pred]), 'prob': numpy.prod([p['prob'] for p in pred])} for pred in preds]
                 preds = sorted(preds, key=lambda x: x['prob'], reverse=True)[:top_n]
                 all_preds.append(preds)
