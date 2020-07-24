@@ -172,7 +172,6 @@ class DeepTranslit():
         all_unique_words = list(set(' '.join(sents).split()))
         word_preds = self.transliterate_words(all_unique_words, top_n=top_n)
         word_preds = {w: p for w, p in zip(all_unique_words, word_preds)}
-        print(word_preds)
 
         sent_preds = []
 
