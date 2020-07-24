@@ -89,8 +89,8 @@ class DeepTranslit():
             print('Downloading model params', model_links[lang_code]['params'], 'to', params_path)
             pydload.dload(url=model_links[lang_code]['params'], save_to_path=params_path, max_time=None)
         
-        DeepTranslit.model, DeepTranslit.params = build_model(params_path=params_path, enc_lstm_units=64, use_gru=True, display_summary=False)
-        DeepTranslit.model.load_weights(checkpoint_path)
+        self.model, self.params = build_model(params_path=params_path, enc_lstm_units=64, use_gru=True, display_summary=False)
+        self.model.load_weights(checkpoint_path)
 
 
     def transliterate_words(self, in_words, top_n=1):
@@ -127,7 +127,7 @@ class DeepTranslit():
         
         unique_tokens = list(unique_tokens)
 
-        unique_token_preds = infer(unique_tokens, DeepTranslit.model, DeepTranslit.params, max_beams=top_n, cut_off_ratio=2)
+        unique_token_preds = infer(unique_tokens, self.model, self.params, max_beams=top_n, cut_off_ratio=2)
         unique_token_preds = {token: token_pred for token, token_pred in zip(unique_tokens, unique_token_preds)}
 
         all_preds = []
